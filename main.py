@@ -87,30 +87,46 @@ def processar_planilha():
             
             pyperclip.copy(str(apolice))
             
-            if not clicar_na_imagem('campo_pesquisa.png', cliques=2):
+            # --- AJUSTE 3: APAGAR O CAMPO ANTES DE COLAR A NOVA APÓLICE ---
+            if not clicar_na_imagem('campo_pesquisa.png', cliques=1):
                 planilha.cell(row=linha, column=1).fill = AZUL
                 continue
             
+            time.sleep(0.5)
             pyautogui.hotkey('ctrl', 'a')
+            time.sleep(0.2)
             pyautogui.press('backspace')
+            time.sleep(0.2)
             pyautogui.hotkey('ctrl', 'v')
             pyautogui.press('enter')
-            time.sleep(3) 
+            time.sleep(4) 
             
             clicar_na_imagem('icone_abrir_apolice.png', esperar=3)
 
+            # --- AJUSTE 1: ARRASTAR O MOUSE PARA O LADO PARA DESBLOQUEAR A VISÃO ---
+            pyautogui.move(300, 0, duration=0.3)
+            time.sleep(1)
+
+            # --- AJUSTE 2: ROLAR A TELA PARA BAIXO ANTES DE PROCURAR OCORRÊNCIAS ---
+            pyautogui.scroll(-600)
+            time.sleep(1.5)
+
             if not clicar_na_imagem('botao_ocorrencias.png', esperar=2):
                 planilha.cell(row=linha, column=1).fill = AZUL
+                pyautogui.scroll(1200) # Rola pra cima pra achar a logo
                 clicar_na_imagem('logomarca.png', esperar=3)
                 continue
 
             if not procurar_imagem_na_tela('status_1.png', confidence=0.85):
+                pyautogui.scroll(1200)
                 clicar_na_imagem('logomarca.png', esperar=3)
                 continue
 
             sucesso_cliques = False
 
             if ocorrencia == "SOMA DOS PRÊMIOS DAS PARCS NÃO BATE COM O PRÊMIO TOTAL":
+                pyautogui.scroll(-400) # Dá mais uma rolada para baixo por garantia
+                time.sleep(1)
                 if clicar_na_imagem('aba_premios.png', esperar=2):
                     clicar_na_imagem('data_vencimento.png')
                     clicar_na_imagem('clicar_fora.png')
@@ -124,8 +140,8 @@ def processar_planilha():
 
             elif ocorrencia in ["INÍCIO DE VIGÊNCIA ANTERIOR A 30 DIAS DA DATA DA PROPOSTA", 
                                 "INÍCIO DE VIGÊNCIA ANTERIOR A 30 DIAS DA DATA DE EMISSÃO"]:
-                pyautogui.scroll(1000) 
-                time.sleep(1)
+                pyautogui.scroll(1500) # Sobe a tela toda para achar a data no topo da apólice
+                time.sleep(1.5)
                 
                 if clicar_na_imagem('data_proposta.png'):
                     clicar_na_imagem('clicar_fora.png')
@@ -152,6 +168,10 @@ def processar_planilha():
                 planilha.cell(row=linha, column=1).fill = AZUL
                 
             wb.save('Ocorrencias_MID_Atualizado.xlsx')
+            
+            # --- VOLTAR AO INÍCIO: ROLA TUDO PARA CIMA E CLICA NA LOGO ---
+            pyautogui.scroll(2000) 
+            time.sleep(1.5)
             clicar_na_imagem('logomarca.png', esperar=3)
 
     print("\nPROCESSO FINALIZADO! Pode abrir o arquivo Ocorrencias_MID_Atualizado.xlsx.")
