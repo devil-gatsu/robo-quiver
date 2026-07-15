@@ -23,7 +23,7 @@ jobs:
 
     - name: Criar o Executavel
       run: |
-        pyinstaller --onefile --noconsole main.py
+        pyinstaller --onefile main.py
 
     - name: Salvar Arquivo para Download
       uses: actions/upload-artifact@v4
