@@ -11,21 +11,10 @@ pyautogui.FAILSAFE = True
 AMARELO = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
 AZUL = PatternFill(start_color='00B0F0', end_color='00B0F0', fill_type='solid')
 
-def rolar_com_ctrl_f(texto):
-    """Usa a busca nativa do Chrome para pular instantaneamente para o elemento na tela"""
-    pyautogui.hotkey('ctrl', 'f')
-    time.sleep(0.5)
-    pyperclip.copy(texto)
-    pyautogui.hotkey('ctrl', 'v')
-    time.sleep(0.8) # Tempo para o Chrome achar e rolar a página
-    pyautogui.press('esc') # Fecha a barrinha de pesquisa
-    time.sleep(0.5)
-
 def clicar_na_imagem(nome_imagem, cliques=1, esperar=1.5, confidence=0.8):
     try:
         caminho = os.path.join(os.getcwd(), nome_imagem)
         if not os.path.exists(caminho):
-            print(f"[!] Imagem '{nome_imagem}' faltando!")
             return False
         
         ponto = pyautogui.locateCenterOnScreen(caminho, confidence=confidence)
@@ -42,6 +31,20 @@ def clicar_na_imagem(nome_imagem, cliques=1, esperar=1.5, confidence=0.8):
     except:
         return False
 
+def descer_e_clicar(nome_imagem, cliques=1, esperar=1.5, confidence=0.8, tentativas=15):
+    """Usa a seta para baixo do teclado para rolar a tela suavemente até achar e clicar no botão"""
+    for _ in range(tentativas):
+        # Tenta clicar
+        if clicar_na_imagem(nome_imagem, cliques, esperar, confidence):
+            return True # Achou e clicou!
+        
+        # Se não achou, clica no canto da tela (pra focar na página) e desce um pouco com a setinha
+        pyautogui.press('down', presses=4)
+        time.sleep(0.5)
+        
+    print(f"[!] Não consegui encontrar o botão: {nome_imagem}")
+    return False
+
 def procurar_imagem_na_tela(nome_imagem, confidence=0.8):
     caminho = os.path.join(os.getcwd(), nome_imagem)
     if os.path.exists(caminho):
@@ -52,7 +55,7 @@ def processar_planilha():
     arquivo_excel = 'Ocorrencias_MID.xlsx'
     if not os.path.exists(arquivo_excel):
         print("Erro: Planilha Ocorrencias_MID.xlsx não encontrada!")
-        input("Enter para sair...")
+        input("Pressione Enter para sair...")
         return
 
     wb = openpyxl.load_workbook(arquivo_excel)
@@ -98,49 +101,50 @@ def processar_planilha():
             time.sleep(4) 
             
             clicar_na_imagem('icone_abrir_apolice.png', esperar=3)
+            
+            # Clica num espaço neutro da página para garantir que as setinhas do teclado vão rolar a tela
             pyautogui.move(300, 0, duration=0.3)
+            pyautogui.click() 
             time.sleep(1)
 
-            # --- 2. BUSCA OCORRÊNCIAS COM CTRL+F ---
-            print(f"[{linha}] Navegando até Ocorrências...")
-            rolar_com_ctrl_f('Ocorrências') # O Chrome pula direto para a palavra!
-            
-            if not clicar_na_imagem('botao_ocorrencias.png', esperar=2):
+            # --- 2. BUSCAR E CLICAR NO BOTÃO OCORRÊNCIAS ---
+            print(f"[{linha}] Descendo a tela procurando Ocorrências...")
+            if not descer_e_clicar('botao_ocorrencias.png', esperar=2):
                 planilha.cell(row=linha, column=1).fill = AZUL
-                pyautogui.scroll(3000) # Rola tudo pra cima para achar a logo
+                pyautogui.press('home') # Joga a tela pro topo
                 clicar_na_imagem('logomarca.png', esperar=3)
                 continue
 
             if not procurar_imagem_na_tela('status_1.png'):
-                pyautogui.scroll(3000)
+                pyautogui.press('home')
                 clicar_na_imagem('logomarca.png', esperar=3)
                 continue
 
             sucesso_cliques = False
 
             if ocorrencia == "SOMA DOS PRÊMIOS DAS PARCS NÃO BATE COM O PRÊMIO TOTAL":
-                rolar_com_ctrl_f('Prêmios')
-                if clicar_na_imagem('aba_premios.png', esperar=2):
+                if descer_e_clicar('aba_premios.png', esperar=2):
                     clicar_na_imagem('data_vencimento.png')
                     clicar_na_imagem('clicar_fora.png')
                     
-                    rolar_com_ctrl_f('Gravar') # Pula direto para o botão Gravar
-                    if clicar_na_imagem('gravar.png', esperar=4):
+                    if descer_e_clicar('gravar.png', esperar=4):
                         sucesso_cliques = True
 
             elif ocorrencia in ["INÍCIO DE VIGÊNCIA ANTERIOR A 30 DIAS DA DATA DA PROPOSTA", 
                                 "INÍCIO DE VIGÊNCIA ANTERIOR A 30 DIAS DA DATA DE EMISSÃO"]:
-                rolar_com_ctrl_f('Proposta') # Pula direto para a palavra Proposta
+                pyautogui.press('home') # Volta pro topo da página para achar a Proposta
+                time.sleep(1)
+                
                 if clicar_na_imagem('data_proposta.png'):
                     clicar_na_imagem('clicar_fora.png')
                     
-                    rolar_com_ctrl_f('Gravar')
-                    if clicar_na_imagem('gravar.png', esperar=4):
+                    if descer_e_clicar('gravar.png', esperar=4):
                         sucesso_cliques = True
 
             # --- VERIFICAÇÃO FINAL ---
-            rolar_com_ctrl_f('Ocorrências')
-            clicar_na_imagem('botao_ocorrencias.png', esperar=2)
+            pyautogui.press('home') # Volta pro topo para descer de novo até ocorrências
+            time.sleep(1)
+            descer_e_clicar('botao_ocorrencias.png', esperar=2)
             
             ocorrencia_ainda_ativa = procurar_imagem_na_tela('status_1.png')
 
@@ -151,7 +155,8 @@ def processar_planilha():
                 
             wb.save('Ocorrencias_MID_Atualizado.xlsx')
             
-            pyautogui.scroll(4000) # Sobe a página inteira
+            pyautogui.press('home') # Joga a tela pro topo para clicar na logomarca
+            time.sleep(1)
             clicar_na_imagem('logomarca.png', esperar=3)
 
     print("\nPROCESSO FINALIZADO!")
